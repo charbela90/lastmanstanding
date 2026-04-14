@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NRL 2026 Tipping Competition</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* =============================================
+   CONFIGURATION - edit PLAYERS and SUPABASE below
+   ============================================= */
+:root {
+  --bg-deep: #0a0c10;
+  --bg-card: #111418;
+  --bg-card2: #161a20;
+  --accent: #f5a623;
+  --accent2: #e8312a;
+  --green: #22c55e;
+  --red: #ef4444;
+  --text: #e8eaf0;
+  --text-muted: #7a8090;
+  --border: #232830;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg-deep); color: var(--text); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+/* LOGIN SCREEN */
+#login-screen {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background-image: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(245,166,35,0.09) 0%, transparent 70%);
+  padding: 20px;
+}
+.login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 100%; max-width: 400px;
+  text-align: center;
+}
+.login-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 52px; line-height: 0.9; text-transform: uppercase; }
+.login-title span { display: block; color: var(--accent); font-size: 68px; letter-spacing: -2px; }
+.login-sub { font-size: 14px; color: var(--text-muted); margin: 12px 0 32px; }
+.login-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; text-align: left; }
+.login-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+.login-field select, .login-field input {
+  background: var(--bg-deep); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+  font-family: 'Barlow', sans-serif; font-size: 15px;
+  color: var(--text); outline: none; transition: border-color 0.2s;
+  width: 100%;
+}
+.login-field select option { background: #1a1e26; }
+.login-field input:focus, .login-field select:focus { border-color: var(--accent); }
+.login-field input::placeholder { color: #3a4050; }
+.btn-login {
+  width: 100%; background: linear-gradient(135deg, var(--accent), #e8931a);
+  color: #000; font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900; font-size: 20px; letter-spacing: 1px;
+  text-transform: uppercase; border: none; border-radius: 8px;
+  padding: 15px; cursor: pointer; margin-top: 8px; transition: all 0.18s;
+}
+.btn-login:hover { box-shadow: 0 6px 20px rgba(245,166,35,0.3); }
+.login-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 20px; }
+
+/* MAIN APP - hidden until login */
+#app { display: none; }
+
+/* HEADER */
+header {
+  text-align: center; padding: 36px 20px 24px;
+  position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+header::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+}
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; max-width: 860px; margin: 0 auto; }
+.header-mid { flex: 1; text-align: center; }
+.header-badge {
+  display: inline-block; background: linear-gradient(135deg, var(--accent2), #b71c1c);
+  color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 3px; margin-bottom: 10px;
+}
+header h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: clamp(34px, 7vw, 64px); line-height: 0.9; letter-spacing: -1px; text-transform: uppercase; }
+header h1 span { display: block; color: var(--accent); font-size: clamp(44px, 9vw, 86px); letter-spacing: -2px; }
+.player-badge {
+  background: var(--bg-card2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  color: var(--text-muted); text-align: right; min-width: 120px;
+}
+.player-badge strong { display: block; color: var(--accent); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; }
+.btn-logout {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  font-family: 'Barlow', sans-serif; font-size: 12px; padding: 5px 10px;
+  border-radius: 5px; cursor: pointer; margin-top: 6px; transition: all 0.15s; display: block; width: 100%;
+}
+.btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+/* ROUND NAV */
+.round-nav-wrap {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,12,16,0.96); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 10px 16px;
+}
+.round-nav { display: flex; gap: 6px; overflow-x: auto; max-width: 1100px; margin: 0 auto; scrollbar-width: thin; scrollbar-color: var(--accent) transparent; padding-bottom: 4px; }
+.round-nav::-webkit-scrollbar { height: 4px; }
+.round-nav::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+.rn-btn {
+  flex-shrink: 0; background: var(--bg-card2); border: 1px solid var(--border);
+  color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 13px; padding: 6px 12px;
+  border-radius: 5px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
+}
+.rn-btn:hover { background: #1e2230; color: var(--text); border-color: #3a4050; }
+.rn-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.rn-btn.has-pick { border-color: var(--green); color: var(--green); }
+.rn-btn.has-pick.active { background: var(--green); color: #000; border-color: var(--green); }
+
+/* MAIN */
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+.round-section { display: none; }
+.round-section.active { display: block; }
+.round-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; padding-bottom: 14px; border-bottom: 2px solid var(--border); }
+.round-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 40px; color: var(--accent); line-height: 1; }
+.round-dates { font-size: 13px; color: var(--text-muted); }
+
+/* 5-ROUND RULE NOTICE */
+.rule-notice {
+  background: rgba(245,166,35,0.07); border: 1px solid rgba(245,166,35,0.25);
+  border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--text-muted);
+  margin-bottom: 14px; line-height: 1.5;
+}
+.rule-notice strong { color: var(--accent); }
+
+/* ALREADY TIPPED BANNER */
+.already-tipped-banner {
+  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;
+  font-size: 14px; display: flex; align-items: center; gap: 10px;
+}
+.already-tipped-banner .tick { color: var(--green); font-size: 20px; }
+.already-tipped-banner strong { color: var(--green); }
+
+/* GAME CARD */
+.games-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.game-card {
+  background: var(--bg-card); border: 2px solid var(--border);
+  border-radius: 10px; padding: 14px 18px; position: relative; overflow: hidden;
+  transition: all 0.2s;
+}
+.game-card.clickable { cursor: pointer; }
+.game-card.clickable:hover { border-color: #3a4050; background: var(--bg-card2); transform: translateY(-1px); }
+.game-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--border); transition: background 0.2s; }
+.game-card.selected { border-color: var(--accent); background: rgba(245,166,35,0.06); }
+.game-card.selected::before { background: var(--accent); }
+.game-card.locked { opacity: 0.45; cursor: not-allowed; }
+.game-card.locked::before { background: var(--red); }
+.game-meta { font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 10px; text-transform: uppercase; font-weight: 600; }
+.game-teams { display: flex; align-items: center; gap: 12px; }
+.team { flex: 1; display: flex; align-items: center; gap: 10px; }
+.team.away { flex-direction: row-reverse; text-align: right; }
+.team-logo { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 12px; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.08); }
+.team-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; line-height: 1.1; }
+.team-nick { font-size: 11px; color: var(--text-muted); }
+.locked-tag { font-size: 10px; color: var(--red); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+.vs-badge { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px; color: var(--text-muted); flex-shrink: 0; }
+.game-card.pick-frozen { cursor: not-allowed; opacity: 0.6; }
+.game-card.pick-frozen.selected { opacity: 1; border-color: var(--accent); }
+.pick-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+.locked-hint { color: var(--accent); font-weight: 600; font-size: 13px; }
+
+/* SUBMIT AREA */
+.submit-area { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.submit-area h3 { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; margin-bottom: 14px; text-transform: uppercase; }
+.pick-display { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 12px 16px; background: var(--bg-deep); border-radius: 8px; border: 1px solid var(--border); }
+.pick-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+.pick-value { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; color: var(--accent); }
+.btn-submit {
+  width: 100%; background: linear-gradient(135deg, var(--accent), #e8931a);
+  color: #000; font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900; font-size: 20px; letter-spacing: 1px; text-transform: uppercase;
+  border: none; border-radius: 8px; padding: 15px;
+  cursor: pointer; transition: all 0.18s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-submit:hover { box-shadow: 0 8px 24px rgba(245,166,35,0.3); }
+.btn-submit:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.save-status { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 10px; min-height: 20px; }
+.save-status.ok { color: var(--green); }
+.save-status.err { color: var(--red); }
+
+/* PROGRESS */
+.progress-wrap { max-width: 860px; margin: 0 auto 24px; padding: 0 16px; }
+.progress-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+.progress-bg { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 4px; transition: width 0.4s; }
+
+/* HISTORY PANEL */
+.history-toggle {
+  width: 100%; background: var(--bg-card2); border: 1px solid var(--border);
+  color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 15px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 12px 18px; border-radius: 8px; cursor: pointer; transition: all 0.18s;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.history-toggle:hover { border-color: #3a4050; color: var(--text); }
+.history-panel { display: none; background: var(--bg-card); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; padding: 16px 20px; }
+.history-panel.open { display: block; }
+.history-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.history-row:last-child { border-bottom: none; }
+.history-row .rnd { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.history-row .pick-team { color: var(--accent); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; }
+.history-row .matchup { font-size: 12px; color: var(--text-muted); }
+.history-row .no-pick { color: #3a4050; font-size: 13px; font-style: italic; }
+
+/* ROUND STATUS BANNERS */
+.round-status-banner {
+  border-radius: 8px; padding: 10px 16px; font-size: 13px;
+  font-weight: 600; margin-bottom: 14px; letter-spacing: 0.3px;
+}
+.round-status-banner.completed {
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #ef4444;
+}
+.round-status-banner.future {
+  background: rgba(122,128,144,0.08); border: 1px solid rgba(122,128,144,0.2); color: var(--text-muted);
+}
+.round-status-banner.open {
+  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: #22c55e;
+}
+
+/* SIDE TICK - shows on the chosen team's side */
+.side-tick {
+  width: 22px; height: 22px;
+  background: var(--accent); border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #000; font-size: 13px; font-weight: 900;
+  margin-left: 8px; flex-shrink: 0;
+}
+.team.away .side-tick { margin-left: 0; margin-right: 8px; }
+#loading-overlay { position: fixed; inset: 0; background: var(--bg-deep); display: flex; align-items: center; justify-content: center; z-index: 999; flex-direction: column; gap: 16px; }
+#loading-overlay.hidden { display: none; }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-msg { font-size: 14px; color: var(--text-muted); }
+
+@media (max-width: 540px) {
+  .team-name { font-size: 14px; }
+  .team-logo { width: 36px; height: 36px; font-size: 10px; }
+  .game-card { padding: 12px 14px; }
+  .login-box { padding: 28px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-msg">Loading...</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none">
+  <div class="login-box">
+    <div class="header-badge">2026 Season</div>
+    <div class="login-title">NRL<span>TIPPING</span></div>
+    <p class="login-sub">Sign in to submit and track your tips</p>
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login-name" placeholder="Enter your username" autocomplete="off" autocapitalize="off" />
+    </div>
+    <div class="login-field">
+      <label>PIN</label>
+      <input type="password" id="login-pin" maxlength="4" placeholder="4-digit PIN" inputmode="numeric" />
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="header-top">
+      <div style="min-width:120px"></div>
+      <div class="header-mid">
+        <div class="header-badge">2026 Season</div>
+        <h1>NRL<span>TIPPING</span></h1>
+      </div>
+      <div class="player-badge">
+        <strong id="player-name-display">Player</strong>
+        <span id="player-picks-count">0/27 tipped</span>
+        <button class="btn-logout" onclick="doLogout()">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-text">0 of 21 rounds tipped</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bg">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="round-nav-wrap">
+    <div class="round-nav" id="roundNav"></div>
+  </div>
+
+  <main id="mainContent"></main>
+
+  <div style="max-width:860px;margin:0 auto 40px;padding:0 16px">
+    <button class="history-toggle" onclick="toggleHistory()">
+      <span>My Tips History</span>
+      <span id="histArrow">v</span>
+    </button>
+    <div class="history-panel" id="historyPanel"></div>
+  </div>
+</div>
+
+<script>
+/* ===================================================
+   STEP 1: CONFIGURE YOUR SUPABASE CONNECTION
+   Go to supabase.com -> your project -> Settings -> API
+   =================================================== */
+var SUPABASE_URL = 'https://hhxpwxdzbwuubdrfdpvv.supabase.co';        // e.g. https://abcdefgh.supabase.co
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoeHB3eGR6Ynd1dWJkcmZkcHZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDcwMzEsImV4cCI6MjA5MTY4MzAzMX0.4FAbb_CuTDNJ0dIXrMotjFEbIPzQdwXBgexzgYS2wUk'; // long string starting with eyJ...
+
+/* ===================================================
+   STEP 2: ADD YOUR 13 PLAYERS (name + PIN)
+   Share each person's PIN with them privately
+   =================================================== */
+var PLAYERS = [
+  { name: 'Charbel Azzi',  pin: '1111', locked: false },
+  { name: 'Player 2',  pin: '2222', locked: false },
+  { name: 'Player 3',  pin: '3333', locked: false },
+  { name: 'Player 4',  pin: '4444', locked: false },
+  { name: 'Player 5',  pin: '5555', locked: false },
+  { name: 'Player 6',  pin: '6666', locked: false },
+  { name: 'Player 7',  pin: '7777', locked: false },
+  { name: 'Player 8',  pin: '8888', locked: false },
+  { name: 'Player 9',  pin: '9999', locked: false },
+  { name: 'Player 10', pin: '1234', locked: false },
+  { name: 'Player 11', pin: '2345', locked: false },
+  { name: 'Player 12', pin: '3456', locked: false },
+  { name: 'Player 13', pin: '4567', locked: false }
+];
+
+/* ===================================================
+   STEP 3: PASTE THIS SQL INTO SUPABASE SQL EDITOR
+   (Settings -> SQL Editor -> New Query)
+   ---------------------------------------------------
+   CREATE TABLE tips (
+     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+     player TEXT NOT NULL,
+     round_num INTEGER NOT NULL,
+     home_team TEXT NOT NULL,
+     away_team TEXT NOT NULL,
+     tipped_team TEXT NOT NULL,
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     UNIQUE(player, round_num)
+   );
+   ALTER TABLE tips ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY "Players read own tips"
+     ON tips FOR SELECT USING (true);
+   CREATE POLICY "Players insert own tips"
+     ON tips FOR INSERT WITH CHECK (true);
+   CREATE POLICY "Players update own tips"
+     ON tips FOR UPDATE USING (true);
+   =================================================== */
+
+/* ===================================================
+   STEP 4: YOUR WHATSAPP NUMBER
+   International format, no + or spaces e.g. 61412345678
+   =================================================== */
+var WA_NUMBER = '61424277544';
+
+/* ===================================================
+   NO EDITS NEEDED BELOW THIS LINE
+   =================================================== */
+
+var db = null;
+var currentPlayer = null;
+var allTips = {};   // round_num -> tip object
+var activeRound = 0;
+var pendingPick = {}; // round_num -> { home, away, team }
+
+/* TEAM DATA */
+var TEAMS = {
+  "Brisbane Broncos":             { abbr:"BRI", bg:"#4B0082", fg:"#FFD700" },
+  "Canberra Raiders":             { abbr:"CBR", bg:"#00843D", fg:"#ffffff" },
+  "Canterbury-Bankstown Bulldogs":{ abbr:"CBY", bg:"#003DA5", fg:"#ffffff" },
+  "Cronulla-Sutherland Sharks":   { abbr:"SHA", bg:"#0097B2", fg:"#ffffff" },
+  "Gold Coast Titans":            { abbr:"GCT", bg:"#009DDC", fg:"#FFD700" },
+  "Manly Warringah Sea Eagles":   { abbr:"MAN", bg:"#8B0000", fg:"#ffffff" },
+  "Melbourne Storm":              { abbr:"MEL", bg:"#4B006E", fg:"#C8A028" },
+  "New Zealand Warriors":         { abbr:"WAR", bg:"#888B8D", fg:"#ffffff" },
+  "Newcastle Knights":            { abbr:"NEW", bg:"#E40000", fg:"#ffffff" },
+  "North Queensland Cowboys":     { abbr:"NQC", bg:"#003087", fg:"#FFD700" },
+  "Parramatta Eels":              { abbr:"PAR", bg:"#002E6D", fg:"#F5A800" },
+  "Penrith Panthers":             { abbr:"PEN", bg:"#1A1A2E", fg:"#E8312A" },
+  "South Sydney Rabbitohs":       { abbr:"SSY", bg:"#007A3D", fg:"#D2001C" },
+  "St George Illawarra Dragons":  { abbr:"SGI", bg:"#E40000", fg:"#ffffff" },
+  "Sydney Roosters":              { abbr:"SYD", bg:"#003087", fg:"#E40000" },
+  "Wests Tigers":                 { abbr:"WTI", bg:"#FF6600", fg:"#000000" },
+  "Dolphins":                     { abbr:"DOL", bg:"#C8102E", fg:"#ffffff" }
+};
+var SHORT = {
+  "Brisbane Broncos":"Broncos","Canberra Raiders":"Raiders",
+  "Canterbury-Bankstown Bulldogs":"Bulldogs","Cronulla-Sutherland Sharks":"Sharks",
+  "Gold Coast Titans":"Titans","Manly Warringah Sea Eagles":"Sea Eagles",
+  "Melbourne Storm":"Storm","New Zealand Warriors":"Warriors",
+  "Newcastle Knights":"Knights","North Queensland Cowboys":"Cowboys",
+  "Parramatta Eels":"Eels","Penrith Panthers":"Panthers",
+  "South Sydney Rabbitohs":"Rabbitohs","St George Illawarra Dragons":"Dragons",
+  "Sydney Roosters":"Roosters","Wests Tigers":"Tigers","Dolphins":"Dolphins"
+};
+function sn(n) { return SHORT[n] || n; }
+function logo(name) {
+  var t = TEAMS[name] || { abbr: name.substring(0,3).toUpperCase(), bg:"#2a3040", fg:"#ffffff" };
+  return '<div class="team-logo" style="background:' + t.bg + ';color:' + t.fg + '">' + t.abbr + '</div>';
+}
+
+/* ROUND DATA
+   lockout = Thursday 3:30pm Sydney time in UTC for each round.
+   The page auto-locks at that moment and shows a live countdown while open. */
+var ROUNDS = [
+  { num:7,  dates:"16-20 Apr", lockout:"2026-04-16T03:30:00Z", byes:["Cronulla-Sutherland Sharks"], games:[
+    {home:"North Queensland Cowboys",away:"Manly Warringah Sea Eagles",time:"Thu 7:50pm",venue:"Queensland Country Bank Stadium"},
+    {home:"Canberra Raiders",away:"Melbourne Storm",time:"Fri 6:00pm",venue:"GIO Stadium"},
+    {home:"Dolphins",away:"Penrith Panthers",time:"Fri 8:00pm",venue:"TIO Stadium"},
+    {home:"New Zealand Warriors",away:"Gold Coast Titans",time:"Sat 3:00pm",venue:"Go Media Stadium"},
+    {home:"South Sydney Rabbitohs",away:"St George Illawarra Dragons",time:"Sat 5:30pm",venue:"Accor Stadium"},
+    {home:"Wests Tigers",away:"Brisbane Broncos",time:"Sat 7:30pm",venue:"Campbelltown Sports Stadium"},
+    {home:"Sydney Roosters",away:"Newcastle Knights",time:"Sun 2:00pm",venue:"Allianz Stadium"},
+    {home:"Parramatta Eels",away:"Canterbury-Bankstown Bulldogs",time:"Sun 4:05pm",venue:"CommBank Stadium"}
+  ]},
+  { num:8,  dates:"23-26 Apr", lockout:"2026-04-23T05:30:00Z", byes:["Gold Coast Titans"], games:[
+    {home:"Wests Tigers",away:"Canberra Raiders",time:"Thu 7:50pm",venue:"Leichhardt Oval"},
+    {home:"North Queensland Cowboys",away:"Cronulla-Sutherland Sharks",time:"Fri 6:00pm",venue:"Queensland Country Bank Stadium"},
+    {home:"Brisbane Broncos",away:"Canterbury-Bankstown Bulldogs",time:"Fri 8:00pm",venue:"Suncorp Stadium"},
+    {home:"St George Illawarra Dragons",away:"Sydney Roosters",time:"Sat 4:00pm",venue:"Allianz Stadium"},
+    {home:"New Zealand Warriors",away:"Dolphins",time:"Sat 6:05pm",venue:"Hnry Stadium"},
+    {home:"Melbourne Storm",away:"South Sydney Rabbitohs",time:"Sat 8:10pm",venue:"AAMI Park"},
+    {home:"Newcastle Knights",away:"Penrith Panthers",time:"Sun 2:00pm",venue:"McDonald Jones Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"Parramatta Eels",time:"Sun 4:05pm",venue:"4 Pines Park"}
+  ]},
+  { num:9,  dates:"1-3 May",  lockout:"2026-04-30T05:30:00Z", byes:["St George Illawarra Dragons"], games:[
+    {home:"Canterbury-Bankstown Bulldogs",away:"North Queensland Cowboys",time:"Fri 6:00pm",venue:"Accor Stadium"},
+    {home:"Dolphins",away:"Melbourne Storm",time:"Fri 8:00pm",venue:"Suncorp Stadium"},
+    {home:"Gold Coast Titans",away:"Canberra Raiders",time:"Sat 3:00pm",venue:"Cbus Super Stadium"},
+    {home:"Parramatta Eels",away:"New Zealand Warriors",time:"Sat 5:30pm",venue:"CommBank Stadium"},
+    {home:"Sydney Roosters",away:"Brisbane Broncos",time:"Sat 7:30pm",venue:"Allianz Stadium"},
+    {home:"Newcastle Knights",away:"South Sydney Rabbitohs",time:"Sun 2:00pm",venue:"McDonald Jones Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"Wests Tigers",time:"Sun 4:05pm",venue:"Ocean Protect Stadium"},
+    {home:"Penrith Panthers",away:"Manly Warringah Sea Eagles",time:"Sun 6:15pm",venue:"CommBank Stadium"}
+  ]},
+  { num:10, dates:"7-10 May", lockout:"2026-05-07T05:30:00Z", byes:["New Zealand Warriors"], games:[
+    {home:"Dolphins",away:"Canterbury-Bankstown Bulldogs",time:"Thu 7:50pm",venue:"Suncorp Stadium"},
+    {home:"Sydney Roosters",away:"Gold Coast Titans",time:"Fri 6:00pm",venue:"Polytec Stadium"},
+    {home:"North Queensland Cowboys",away:"Parramatta Eels",time:"Fri 8:00pm",venue:"Queensland Country Bank Stadium"},
+    {home:"St George Illawarra Dragons",away:"Newcastle Knights",time:"Sat 3:00pm",venue:"WIN Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Cronulla-Sutherland Sharks",time:"Sat 5:30pm",venue:"Accor Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"Brisbane Broncos",time:"Sat 7:30pm",venue:"4 Pines Park"},
+    {home:"Melbourne Storm",away:"Wests Tigers",time:"Sun 2:00pm",venue:"AAMI Park"},
+    {home:"Canberra Raiders",away:"Penrith Panthers",time:"Sun 4:05pm",venue:"GIO Stadium"}
+  ]},
+  { num:11, dates:"15-17 May",lockout:"2026-05-14T05:30:00Z", byes:["Canberra Raiders"], games:[
+    {home:"Cronulla-Sutherland Sharks",away:"Canterbury-Bankstown Bulldogs",time:"Fri 6:00pm",venue:"Suncorp Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Dolphins",time:"Fri 8:00pm",venue:"Accor Stadium"},
+    {home:"Wests Tigers",away:"Manly Warringah Sea Eagles",time:"Sat 3:00pm",venue:"Campbelltown Sports Stadium"},
+    {home:"Sydney Roosters",away:"North Queensland Cowboys",time:"Sat 5:30pm",venue:"Allianz Stadium"},
+    {home:"Parramatta Eels",away:"Melbourne Storm",time:"Sat 7:45pm",venue:"CommBank Stadium"},
+    {home:"Gold Coast Titans",away:"Newcastle Knights",time:"Sun 2:00pm",venue:"Cbus Super Stadium"},
+    {home:"New Zealand Warriors",away:"Brisbane Broncos",time:"Sun 4:05pm",venue:"Go Media Stadium"},
+    {home:"Penrith Panthers",away:"St George Illawarra Dragons",time:"Sun 6:25pm",venue:"CommBank Stadium"}
+  ]},
+  { num:12, dates:"21-24 May",lockout:"2026-05-21T05:30:00Z", byes:["Brisbane Broncos","Cronulla-Sutherland Sharks","Newcastle Knights","Parramatta Eels","Penrith Panthers","Wests Tigers"], games:[
+    {home:"Canberra Raiders",away:"Dolphins",time:"Thu 7:50pm",venue:"GIO Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"Melbourne Storm",time:"Fri 8:00pm",venue:"Accor Stadium"},
+    {home:"St George Illawarra Dragons",away:"New Zealand Warriors",time:"Sat 5:30pm",venue:"Jubilee Oval"},
+    {home:"Manly Warringah Sea Eagles",away:"Gold Coast Titans",time:"Sat 7:30pm",venue:"4 Pines Park"},
+    {home:"North Queensland Cowboys",away:"South Sydney Rabbitohs",time:"Sun 4:05pm",venue:"Queensland Country Bank Stadium"}
+  ]},
+  { num:13, dates:"29-31 May",lockout:"2026-05-28T05:30:00Z", byes:["Dolphins","Gold Coast Titans","South Sydney Rabbitohs"], games:[
+    {home:"Cronulla-Sutherland Sharks",away:"Manly Warringah Sea Eagles",time:"Fri 8:00pm",venue:"Ocean Protect Stadium"},
+    {home:"Newcastle Knights",away:"Parramatta Eels",time:"Sat 3:00pm",venue:"McDonald Jones Stadium"},
+    {home:"Wests Tigers",away:"Canterbury-Bankstown Bulldogs",time:"Sat 5:30pm",venue:"CommBank Stadium"},
+    {home:"Melbourne Storm",away:"Sydney Roosters",time:"Sat 7:30pm",venue:"AAMI Park"},
+    {home:"Brisbane Broncos",away:"St George Illawarra Dragons",time:"Sun 2:00pm",venue:"Suncorp Stadium"},
+    {home:"Canberra Raiders",away:"North Queensland Cowboys",time:"Sun 4:05pm",venue:"GIO Stadium"},
+    {home:"Penrith Panthers",away:"New Zealand Warriors",time:"Sun 6:15pm",venue:"CommBank Stadium"}
+  ]},
+  { num:14, dates:"4-8 Jun",  lockout:"2026-06-04T05:30:00Z", byes:["New Zealand Warriors"], games:[
+    {home:"Manly Warringah Sea Eagles",away:"South Sydney Rabbitohs",time:"Thu 7:50pm",venue:"4 Pines Park"},
+    {home:"Melbourne Storm",away:"Newcastle Knights",time:"Fri 6:00pm",venue:"AAMI Park"},
+    {home:"Canberra Raiders",away:"Sydney Roosters",time:"Fri 8:00pm",venue:"GIO Stadium"},
+    {home:"North Queensland Cowboys",away:"Dolphins",time:"Sat 5:30pm",venue:"Queensland Country Bank Stadium"},
+    {home:"Brisbane Broncos",away:"Gold Coast Titans",time:"Sat 7:30pm",venue:"Suncorp Stadium"},
+    {home:"Wests Tigers",away:"Penrith Panthers",time:"Sun 2:00pm",venue:"CommBank Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"St George Illawarra Dragons",time:"Sun 4:05pm",venue:"Ocean Protect Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"Parramatta Eels",time:"Mon 4:00pm",venue:"Accor Stadium"}
+  ]},
+  { num:15, dates:"11-14 Jun",lockout:"2026-06-11T05:30:00Z", byes:["Canterbury-Bankstown Bulldogs","Manly Warringah Sea Eagles","Melbourne Storm","Newcastle Knights","North Queensland Cowboys","Penrith Panthers","St George Illawarra Dragons"], games:[
+    {home:"South Sydney Rabbitohs",away:"Brisbane Broncos",time:"Thu 7:50pm",venue:"Accor Stadium"},
+    {home:"Dolphins",away:"Sydney Roosters",time:"Fri 8:00pm",venue:"Suncorp Stadium"},
+    {home:"New Zealand Warriors",away:"Cronulla-Sutherland Sharks",time:"Sat 5:30pm",venue:"Go Media Stadium"},
+    {home:"Parramatta Eels",away:"Canberra Raiders",time:"Sat 7:30pm",venue:"CommBank Stadium"},
+    {home:"Wests Tigers",away:"Gold Coast Titans",time:"Sun 4:05pm",venue:"Leichhardt Oval"}
+  ]},
+  { num:16, dates:"19-21 Jun",lockout:"2026-06-18T05:30:00Z", byes:["Brisbane Broncos","Parramatta Eels","South Sydney Rabbitohs"], games:[
+    {home:"Newcastle Knights",away:"St George Illawarra Dragons",time:"Fri 8:00pm",venue:"McDonald Jones Stadium"},
+    {home:"Wests Tigers",away:"Dolphins",time:"Sat 3:00pm",venue:"Campbelltown Sports Stadium"},
+    {home:"Gold Coast Titans",away:"Penrith Panthers",time:"Sat 5:30pm",venue:"Cbus Super Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"Manly Warringah Sea Eagles",time:"Sat 7:30pm",venue:"Accor Stadium"},
+    {home:"New Zealand Warriors",away:"North Queensland Cowboys",time:"Sun 2:00pm",venue:"One New Zealand Stadium"},
+    {home:"Melbourne Storm",away:"Canberra Raiders",time:"Sun 4:05pm",venue:"AAMI Park"},
+    {home:"Sydney Roosters",away:"Cronulla-Sutherland Sharks",time:"Sun 6:15pm",venue:"Allianz Stadium"}
+  ]},
+  { num:17, dates:"25-28 Jun",lockout:"2026-06-25T05:30:00Z", byes:["Cronulla-Sutherland Sharks"], games:[
+    {home:"Parramatta Eels",away:"South Sydney Rabbitohs",time:"Thu 7:50pm",venue:"CommBank Stadium"},
+    {home:"Gold Coast Titans",away:"Canterbury-Bankstown Bulldogs",time:"Fri 6:00pm",venue:"Cbus Super Stadium"},
+    {home:"Brisbane Broncos",away:"Sydney Roosters",time:"Fri 8:00pm",venue:"Suncorp Stadium"},
+    {home:"Dolphins",away:"New Zealand Warriors",time:"Sat 3:00pm",venue:"Suncorp Stadium"},
+    {home:"North Queensland Cowboys",away:"Penrith Panthers",time:"Sat 5:30pm",venue:"Queensland Country Bank Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"Melbourne Storm",time:"Sat 7:30pm",venue:"4 Pines Park"},
+    {home:"Canberra Raiders",away:"St George Illawarra Dragons",time:"Sun 2:00pm",venue:"GIO Stadium"},
+    {home:"Newcastle Knights",away:"Wests Tigers",time:"Sun 4:05pm",venue:"McDonald Jones Stadium"}
+  ]},
+  { num:18, dates:"3-5 Jul",  lockout:"2026-07-02T05:30:00Z", byes:["Canberra Raiders","Canterbury-Bankstown Bulldogs","Gold Coast Titans","Melbourne Storm","New Zealand Warriors","North Queensland Cowboys","Sydney Roosters"], games:[
+    {home:"Penrith Panthers",away:"South Sydney Rabbitohs",time:"Fri 8:00pm",venue:"CommBank Stadium"},
+    {home:"St George Illawarra Dragons",away:"Wests Tigers",time:"Sat 5:30pm",venue:"Jubilee Oval"},
+    {home:"Brisbane Broncos",away:"Cronulla-Sutherland Sharks",time:"Sat 7:30pm",venue:"Suncorp Stadium"},
+    {home:"Parramatta Eels",away:"Manly Warringah Sea Eagles",time:"Sun 2:00pm",venue:"CommBank Stadium"},
+    {home:"Newcastle Knights",away:"Dolphins",time:"Sun 4:05pm",venue:"McDonald Jones Stadium"}
+  ]},
+  { num:19, dates:"10-12 Jul",lockout:"2026-07-09T05:30:00Z", byes:["Brisbane Broncos","Penrith Panthers","St George Illawarra Dragons"], games:[
+    {home:"Wests Tigers",away:"New Zealand Warriors",time:"Fri 8:00pm",venue:"Campbelltown Sports Stadium"},
+    {home:"Dolphins",away:"Cronulla-Sutherland Sharks",time:"Sat 3:00pm",venue:"Kayo Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"Canberra Raiders",time:"Sat 5:30pm",venue:"Accor Stadium"},
+    {home:"Sydney Roosters",away:"Parramatta Eels",time:"Sat 7:30pm",venue:"Allianz Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Newcastle Knights",time:"Sun 2:00pm",venue:"Accor Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"North Queensland Cowboys",time:"Sun 4:05pm",venue:"4 Pines Park"},
+    {home:"Melbourne Storm",away:"Gold Coast Titans",time:"Sun 6:15pm",venue:"AAMI Park"}
+  ]},
+  { num:20, dates:"16-19 Jul",lockout:"2026-07-16T05:30:00Z", byes:["Parramatta Eels"], games:[
+    {home:"Penrith Panthers",away:"Brisbane Broncos",time:"Thu 7:50pm",venue:"CommBank Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"Newcastle Knights",time:"Fri 6:00pm",venue:"Ocean Protect Stadium"},
+    {home:"Sydney Roosters",away:"Melbourne Storm",time:"Fri 8:00pm",venue:"Allianz Stadium"},
+    {home:"Canberra Raiders",away:"South Sydney Rabbitohs",time:"Sat 3:00pm",venue:"GIO Stadium"},
+    {home:"New Zealand Warriors",away:"St George Illawarra Dragons",time:"Sat 5:30pm",venue:"Go Media Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"Wests Tigers",time:"Sat 7:30pm",venue:"Accor Stadium"},
+    {home:"Gold Coast Titans",away:"Manly Warringah Sea Eagles",time:"Sun 2:00pm",venue:"Cbus Super Stadium"},
+    {home:"Dolphins",away:"North Queensland Cowboys",time:"Sun 4:05pm",venue:"Suncorp Stadium"}
+  ]},
+  { num:21, dates:"23-26 Jul",lockout:"2026-07-23T05:30:00Z", byes:["Dolphins"], games:[
+    {home:"Parramatta Eels",away:"Penrith Panthers",time:"Thu 7:50pm",venue:"CommBank Stadium"},
+    {home:"Newcastle Knights",away:"Sydney Roosters",time:"Fri 6:00pm",venue:"McDonald Jones Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Melbourne Storm",time:"Fri 8:00pm",venue:"Accor Stadium"},
+    {home:"Canberra Raiders",away:"Wests Tigers",time:"Sat 3:00pm",venue:"GIO Stadium"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"New Zealand Warriors",time:"Sat 5:30pm",venue:"Accor Stadium"},
+    {home:"North Queensland Cowboys",away:"Brisbane Broncos",time:"Sat 7:30pm",venue:"Queensland Country Bank Stadium"},
+    {home:"St George Illawarra Dragons",away:"Gold Coast Titans",time:"Sun 2:00pm",venue:"Jubilee Oval"},
+    {home:"Manly Warringah Sea Eagles",away:"Cronulla-Sutherland Sharks",time:"Sun 4:05pm",venue:"4 Pines Park"}
+  ]},
+  { num:22, dates:"30 Jul-2 Aug",lockout:"2026-07-30T05:30:00Z", byes:["Manly Warringah Sea Eagles"], games:[
+    {home:"North Queensland Cowboys",away:"Sydney Roosters",time:"Thu 7:50pm",venue:"Queensland Country Bank Stadium"},
+    {home:"St George Illawarra Dragons",away:"Dolphins",time:"Fri 6:00pm",venue:"WIN Stadium"},
+    {home:"Melbourne Storm",away:"Canterbury-Bankstown Bulldogs",time:"Fri 8:00pm",venue:"AAMI Park"},
+    {home:"Gold Coast Titans",away:"New Zealand Warriors",time:"Sat 3:00pm",venue:"Cbus Super Stadium"},
+    {home:"Penrith Panthers",away:"Canberra Raiders",time:"Sat 5:30pm",venue:"Glen Willow Oval"},
+    {home:"Brisbane Broncos",away:"Newcastle Knights",time:"Sat 7:30pm",venue:"Suncorp Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"South Sydney Rabbitohs",time:"Sun 2:00pm",venue:"Ocean Protect Stadium"},
+    {home:"Wests Tigers",away:"Parramatta Eels",time:"Sun 4:05pm",venue:"CommBank Stadium"}
+  ]},
+  { num:23, dates:"6-9 Aug",  lockout:"2026-08-06T05:30:00Z", byes:["Wests Tigers"], games:[
+    {home:"Gold Coast Titans",away:"North Queensland Cowboys",time:"Thu 7:50pm",venue:"Cbus Super Stadium"},
+    {home:"New Zealand Warriors",away:"Penrith Panthers",time:"Fri 6:00pm",venue:"Go Media Stadium"},
+    {home:"Sydney Roosters",away:"Canterbury-Bankstown Bulldogs",time:"Fri 8:00pm",venue:"Allianz Stadium"},
+    {home:"Melbourne Storm",away:"Manly Warringah Sea Eagles",time:"Sat 3:00pm",venue:"HBF Park"},
+    {home:"Dolphins",away:"Brisbane Broncos",time:"Sat 5:30pm",venue:"Suncorp Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Parramatta Eels",time:"Sat 7:30pm",venue:"Allianz Stadium"},
+    {home:"Canberra Raiders",away:"Newcastle Knights",time:"Sun 2:00pm",venue:"GIO Stadium"},
+    {home:"St George Illawarra Dragons",away:"Cronulla-Sutherland Sharks",time:"Sun 4:05pm",venue:"Jubilee Oval"}
+  ]},
+  { num:24, dates:"13-16 Aug",lockout:"2026-08-13T05:30:00Z", byes:["Melbourne Storm"], games:[
+    {home:"Penrith Panthers",away:"Sydney Roosters",time:"Thu 7:50pm",venue:"CommBank Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"Dolphins",time:"Fri 6:00pm",venue:"4 Pines Park"},
+    {home:"Canterbury-Bankstown Bulldogs",away:"South Sydney Rabbitohs",time:"Fri 8:00pm",venue:"Accor Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"Canberra Raiders",time:"Sat 3:00pm",venue:"Ocean Protect Stadium"},
+    {home:"Parramatta Eels",away:"North Queensland Cowboys",time:"Sat 5:30pm",venue:"CommBank Stadium"},
+    {home:"Brisbane Broncos",away:"New Zealand Warriors",time:"Sat 7:30pm",venue:"Suncorp Stadium"},
+    {home:"Newcastle Knights",away:"Gold Coast Titans",time:"Sun 2:00pm",venue:"McDonald Jones Stadium"},
+    {home:"Wests Tigers",away:"St George Illawarra Dragons",time:"Sun 4:05pm",venue:"CommBank Stadium"}
+  ]},
+  { num:25, dates:"20-23 Aug",lockout:"2026-08-20T05:30:00Z", byes:["North Queensland Cowboys"], games:[
+    {home:"Melbourne Storm",away:"Penrith Panthers",time:"Thu 7:50pm",venue:"AAMI Park"},
+    {home:"Canberra Raiders",away:"Brisbane Broncos",time:"Fri 6:00pm",venue:"GIO Stadium"},
+    {home:"Dolphins",away:"Parramatta Eels",time:"Fri 8:00pm",venue:"Suncorp Stadium"},
+    {home:"Newcastle Knights",away:"Manly Warringah Sea Eagles",time:"Sat 3:00pm",venue:"McDonald Jones Stadium"},
+    {home:"South Sydney Rabbitohs",away:"New Zealand Warriors",time:"Sat 5:30pm",venue:"Accor Stadium"},
+    {home:"St George Illawarra Dragons",away:"Canterbury-Bankstown Bulldogs",time:"Sat 7:30pm",venue:"Allianz Stadium"},
+    {home:"Gold Coast Titans",away:"Cronulla-Sutherland Sharks",time:"Sun 2:00pm",venue:"Cbus Super Stadium"},
+    {home:"Sydney Roosters",away:"Wests Tigers",time:"Sun 4:05pm",venue:"Allianz Stadium"}
+  ]},
+  { num:26, dates:"27-30 Aug",lockout:"2026-08-27T05:30:00Z", byes:["Canberra Raiders"], games:[
+    {home:"Brisbane Broncos",away:"Melbourne Storm",time:"Thu 7:50pm",venue:"Suncorp Stadium"},
+    {home:"Manly Warringah Sea Eagles",away:"St George Illawarra Dragons",time:"Fri 6:00pm",venue:"4 Pines Park"},
+    {home:"Penrith Panthers",away:"Canterbury-Bankstown Bulldogs",time:"Fri 8:00pm",venue:"CommBank Stadium"},
+    {home:"Gold Coast Titans",away:"South Sydney Rabbitohs",time:"Sat 3:00pm",venue:"Cbus Super Stadium"},
+    {home:"Sydney Roosters",away:"Dolphins",time:"Sat 5:30pm",venue:"Allianz Stadium"},
+    {home:"North Queensland Cowboys",away:"Wests Tigers",time:"Sat 7:30pm",venue:"Queensland Country Bank Stadium"},
+    {home:"New Zealand Warriors",away:"Newcastle Knights",time:"Sun 2:00pm",venue:"Go Media Stadium"},
+    {home:"Parramatta Eels",away:"Cronulla-Sutherland Sharks",time:"Sun 4:05pm",venue:"CommBank Stadium"}
+  ]},
+  { num:27, dates:"3-6 Sep",  lockout:"2026-09-03T05:30:00Z", byes:["Newcastle Knights"], games:[
+    {home:"Canterbury-Bankstown Bulldogs",away:"Brisbane Broncos",time:"Thu 7:50pm",venue:"Accor Stadium"},
+    {home:"Gold Coast Titans",away:"Dolphins",time:"Fri 6:00pm",venue:"Cbus Super Stadium"},
+    {home:"South Sydney Rabbitohs",away:"Sydney Roosters",time:"Fri 8:00pm",venue:"Allianz Stadium"},
+    {home:"New Zealand Warriors",away:"Manly Warringah Sea Eagles",time:"Sat 3:00pm",venue:"Go Media Stadium"},
+    {home:"North Queensland Cowboys",away:"Canberra Raiders",time:"Sat 5:30pm",venue:"Queensland Country Bank Stadium"},
+    {home:"Cronulla-Sutherland Sharks",away:"Melbourne Storm",time:"Sat 7:30pm",venue:"Ocean Protect Stadium"},
+    {home:"St George Illawarra Dragons",away:"Parramatta Eels",time:"Sun 2:00pm",venue:"WIN Stadium"},
+    {home:"Penrith Panthers",away:"Wests Tigers",time:"Sun 4:05pm",venue:"CommBank Stadium"}
+  ]}
+];
+
+/* =============================================
+   5-ROUND RULE: returns teams blocked for a given round index
+   Looks at the 4 rounds immediately before (ri-4 to ri-1)
+   ============================================= */
+function getBlockedTeams(ri) {
+  var blocked = {};
+  var start = Math.max(0, ri - 4);
+  for (var i = start; i < ri; i++) {
+    var t = allTips[ROUNDS[i].num];
+    if (t) blocked[t.tipped_team] = ROUNDS[i].num;
+  }
+  return blocked; // { teamName: roundNum }
+}
+
+/* =============================================
+   SUPABASE INIT
+   ============================================= */
+function initDB() {
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') return null;
+  return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+/* =============================================
+   LOGIN / LOGOUT
+   ============================================= */
+function populateLoginSelect() {
+  // Players now type their username - no dropdown needed
+}
+
+function doLogin() {
+  var name = document.getElementById('login-name').value.trim();
+  var pin = document.getElementById('login-pin').value.trim();
+  var err = document.getElementById('login-error');
+  err.textContent = '';
+  if (!name) { err.textContent = 'Please enter your username.'; return; }
+  if (!pin) { err.textContent = 'Please enter your PIN.'; return; }
+  var player = null;
+  for (var i = 0; i < PLAYERS.length; i++) {
+    if (PLAYERS[i].name.toLowerCase() === name.toLowerCase() && PLAYERS[i].pin === pin) { player = PLAYERS[i]; break; }
+  }
+  if (!player) { err.textContent = 'Username or PIN not recognised. Try again.'; return; }
+  if (player.locked) {
+    sessionStorage.removeItem('nrl_player');
+    err.textContent = 'Your tipping account is locked for this competition. Contact the admin.';
+    return;
+  }
+  currentPlayer = player.name; // use exact casing from config
+  sessionStorage.setItem('nrl_player', player.name);
+  showApp();
+}
+
+function doLogout() {
+  currentPlayer = null;
+  allTips = {};
+  pendingPick = {};
+  sessionStorage.removeItem('nrl_player');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function showApp() {
+  setLoading(true, 'Loading your tips...');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('player-name-display').textContent = currentPlayer;
+  await loadTips();
+  buildNav();
+  buildRounds();
+  updateProgress();
+  setLoading(false);
+}
+
+/* =============================================
+   SUPABASE DATA
+   ============================================= */
+async function loadTips() {
+  allTips = {};
+  if (!db) return; // no DB configured yet
+  try {
+    var res = await db.from('tips').select('*').eq('player', currentPlayer);
+    if (res.data) {
+      for (var i = 0; i < res.data.length; i++) {
+        allTips[res.data[i].round_num] = res.data[i];
+      }
+    }
+  } catch(e) { console.warn('Load tips error', e); }
+}
+
+async function saveTip(roundNum, home, away, tipped) {
+  if (!db) {
+    allTips[roundNum] = { round_num: roundNum, home_team: home, away_team: away, tipped_team: tipped };
+    return { ok: true, dbSkipped: true };
+  }
+  try {
+    var res = await db.from('tips').upsert({
+      player: currentPlayer,
+      round_num: roundNum,
+      home_team: home,
+      away_team: away,
+      tipped_team: tipped
+    }, { onConflict: 'player,round_num' });
+    if (res.error) {
+      console.error('Supabase error:', res.error);
+      return { ok: false, msg: res.error.message + ' (code: ' + res.error.code + ')' };
+    }
+    allTips[roundNum] = { round_num: roundNum, home_team: home, away_team: away, tipped_team: tipped };
+    return { ok: true };
+  } catch(e) {
+    console.error('saveTip exception:', e);
+    return { ok: false, msg: e.message };
+  }
+}
+
+/* =============================================
+   BUILD UI
+   ============================================= */
+function buildNav() {
+  var nav = document.getElementById('roundNav');
+  nav.innerHTML = '';
+  for (var i = 0; i < ROUNDS.length; i++) {
+    var btn = document.createElement('button');
+    btn.className = 'rn-btn' + (i === 0 ? ' active' : '');
+    btn.id = 'rnbtn-' + i;
+    btn.textContent = 'Rd ' + ROUNDS[i].num;
+    btn.onclick = (function(idx){ return function(){ switchRound(idx); }; })(i);
+    nav.appendChild(btn);
+  }
+  refreshNavBadges();
+}
+
+function refreshNavBadges() {
+  for (var i = 0; i < ROUNDS.length; i++) {
+    var btn = document.getElementById('rnbtn-' + i);
+    if (!btn) continue;
+    var hasTip = !!allTips[ROUNDS[i].num];
+    var hasPending = !!(pendingPick[i] && !allTips[ROUNDS[i].num]);
+    btn.classList.toggle('has-pick', hasTip || hasPending);
+  }
+}
+
+function buildRounds() {
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '';
+  for (var ri = 0; ri < ROUNDS.length; ri++) {
+    (function(roundIdx) {
+      var r = ROUNDS[roundIdx];
+      var sec = document.createElement('section');
+      sec.className = 'round-section' + (roundIdx === 0 ? ' active' : '');
+      sec.id = 'round-' + roundIdx;
+      main.appendChild(sec);
+      renderRound(roundIdx);
+    })(ri);
+  }
+}
+
+function renderRound(ri) {
+  var r = ROUNDS[ri];
+  var sec = document.getElementById('round-' + ri);
+  var existing = allTips[r.num];
+  var blocked = getBlockedTeams(ri);
+  var blockedNames = Object.keys(blocked);
+
+  // Determine round status based on lockout time (Thursday 3:30pm Sydney)
+  var now = new Date();
+  var lockout = new Date(r.lockout);
+  // Open window: from previous round's lockout up to this round's lockout
+  // A round is "open" if now is after the PREVIOUS round's lockout and before THIS round's lockout
+  var prevLockout = ri > 0 ? new Date(ROUNDS[ri - 1].lockout) : new Date(0);
+  var isLocked   = now >= lockout;      // past this round's Thursday cutoff
+  var isNotYet   = now < prevLockout;   // previous round hasn't even closed yet
+  var isOpen     = !isLocked && !isNotYet; // tipping window is active
+
+  // Format lockout time in Sydney timezone for display
+  var lockoutStr = lockout.toLocaleString('en-AU', {
+    timeZone: 'Australia/Sydney',
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
+  });
+
+  // Countdown until lockout (only shown when round is open)
+  var countdownStr = '';
+  if (isOpen) {
+    var msLeft = lockout - now;
+    var hoursLeft = Math.floor(msLeft / 3600000);
+    var minsLeft  = Math.floor((msLeft % 3600000) / 60000);
+    if (hoursLeft > 48) {
+      var daysLeft = Math.floor(hoursLeft / 24);
+      countdownStr = daysLeft + 'd ' + (hoursLeft % 24) + 'h remaining';
+    } else if (hoursLeft > 0) {
+      countdownStr = hoursLeft + 'h ' + minsLeft + 'm remaining';
+    } else {
+      countdownStr = minsLeft + ' min remaining';
+    }
+  }
+
+  var byeStr = '';
+  if (r.byes && r.byes.length > 0) {
+    var bn = [];
+    for (var b = 0; b < r.byes.length; b++) bn.push(sn(r.byes[b]));
+    byeStr = ' | Bye: ' + bn.join(', ');
+  }
+
+  // Status banner
+  var statusHtml = '';
+  if (isLocked) {
+    statusHtml = '<div class="round-status-banner completed">Tipping closed ' + lockoutStr + '</div>';
+  } else if (isNotYet) {
+    var prevLockoutStr = prevLockout.toLocaleString('en-AU', {
+      timeZone: 'Australia/Sydney',
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true
+    });
+    statusHtml = '<div class="round-status-banner future">Opens ' + prevLockoutStr + '</div>';
+  } else {
+    // Round is open - show countdown
+    statusHtml = '<div class="round-status-banner open">Tipping open &bull; Closes ' + lockoutStr + ' &bull; <strong>' + countdownStr + '</strong></div>';
+  }
+
+  var ruleHtml = '';
+  if (isOpen && blockedNames.length > 0) {
+    var bTeams = [];
+    for (var k = 0; k < blockedNames.length; k++) {
+      bTeams.push(sn(blockedNames[k]) + ' (Rd ' + blocked[blockedNames[k]] + ')');
+    }
+    ruleHtml = '<div class="rule-notice"><strong>5-Round Rule:</strong> You cannot tip these teams again yet: ' + bTeams.join(', ') + '</div>';
+  }
+
+  var alreadyHtml = '';
+  if (existing && isOpen) {
+    alreadyHtml = '<div class="already-tipped-banner"><span class="tick">&#10003;</span><div>Tip submitted: <strong>' + sn(existing.tipped_team) + '</strong> to beat ' + sn(existing.home_team === existing.tipped_team ? existing.away_team : existing.home_team) + '.</div></div>';
+  }
+
+  // Has the player made a pick this session or previously?
+  var hasPick = !!(pendingPick[ri] || existing);
+  var pickedTeam = pendingPick[ri] ? pendingPick[ri].team : (existing ? existing.tipped_team : null);
+
+  // Submit area - only shown when round is open
+  var submitHtml = '';
+  if (isOpen) {
+    var pickHint = hasPick
+      ? '<p class="pick-hint locked-hint">&#128274; Pick locked in - submit via WhatsApp below</p>'
+      : '<p class="pick-hint">Click the HOME team (left) or AWAY team (right) to select your tip</p>';
+    submitHtml =
+      pickHint +
+      '<div class="submit-area" id="submit-' + ri + '">' +
+        '<h3>Submit Round ' + r.num + ' Tip</h3>' +
+        '<div class="pick-display">' +
+          '<span class="pick-label">Your Pick:</span>' +
+          '<span class="pick-value" id="pickval-' + ri + '">' + (pickedTeam ? sn(pickedTeam) + ' to win' : 'No pick yet') + '</span>' +
+        '</div>' +
+        '<button class="btn-submit" id="submitbtn-' + ri + '" onclick="handleSubmit(' + ri + ')" ' + (hasPick ? '' : 'disabled') + '>' +
+          (existing ? 'Resend via WhatsApp' : 'Save &amp; WhatsApp') +
+        '</button>' +
+        '<div class="save-status" id="savestatus-' + ri + '"></div>' +
+      '</div>';
+  }
+
+  sec.innerHTML =
+    '<div class="round-header">' +
+      '<div class="round-num">Round ' + r.num + '</div>' +
+      '<div class="round-dates">' + r.dates + byeStr + '</div>' +
+    '</div>' +
+    statusHtml + ruleHtml + alreadyHtml +
+    '<div class="games-grid" id="games-' + ri + '"></div>' +
+    submitHtml;
+
+  sec.innerHTML =
+    '<div class="round-header">' +
+      '<div class="round-num">Round ' + r.num + '</div>' +
+      '<div class="round-dates">' + r.dates + byeStr + '</div>' +
+    '</div>' +
+    statusHtml + ruleHtml + alreadyHtml +
+    '<div class="games-grid" id="games-' + ri + '"></div>' +
+    submitHtml;
+
+  // Build game cards
+  for (var gi = 0; gi < r.games.length; gi++) {
+    (function(roundIdx, gameIdx) {
+      var g = ROUNDS[roundIdx].games[gameIdx];
+      var tip = allTips[ROUNDS[roundIdx].num];
+      var homeBlocked = !!blocked[g.home];
+      var awayBlocked = !!blocked[g.away];
+      var bothBlocked = homeBlocked && awayBlocked;
+
+      // Work out which team is selected for THIS card
+      var pendP = pendingPick[roundIdx];
+      var tippedTeam = null;
+      if (pendP && (pendP.team === g.home || pendP.team === g.away)) {
+        tippedTeam = pendP.team;
+      } else if (tip && (tip.tipped_team === g.home || tip.tipped_team === g.away)) {
+        tippedTeam = tip.tipped_team;
+      }
+      var isSelected = !!tippedTeam;
+      var homeSelected = tippedTeam === g.home;
+      var awaySelected = tippedTeam === g.away;
+
+      // Round is interactive only if open, not blocked, and no pick made yet
+      var pickAlreadyMade = !!(pendingPick[roundIdx] || allTips[ROUNDS[roundIdx].num]);
+      var canClick = isOpen && !bothBlocked && !pickAlreadyMade;
+
+      var card = document.createElement('div');
+      var cardClass = 'game-card';
+      if (isLocked || isNotYet) cardClass += ' locked';
+      else if (bothBlocked) cardClass += ' locked';
+      else if (pickAlreadyMade && isOpen) cardClass += ' pick-frozen';
+      else if (canClick) cardClass += ' clickable';
+      if (isSelected) cardClass += ' selected';
+      card.className = cardClass;
+      card.id = 'game-' + roundIdx + '-' + gameIdx;
+
+      var homeLocked = (homeBlocked && isOpen) ? '<div class="locked-tag">blocked</div>' : '';
+      var awayLocked = (awayBlocked && isOpen) ? '<div class="locked-tag">blocked</div>' : '';
+
+      // Tick on the correct side: home-tick or away-tick
+      var homeTick = homeSelected ? '<div class="side-tick">&#10003;</div>' : '';
+      var awayTick = awaySelected ? '<div class="side-tick">&#10003;</div>' : '';
+
+      card.innerHTML =
+        '<div class="game-meta">' + g.time + (g.venue ? ' | ' + g.venue : '') + '</div>' +
+        '<div class="game-teams">' +
+          '<div class="team home">' + logo(g.home) + '<div><div class="team-name">' + sn(g.home) + '</div>' + homeLocked + '</div>' + homeTick + '</div>' +
+          '<div class="vs-badge">VS</div>' +
+          '<div class="team away">' + logo(g.away) + '<div><div class="team-name">' + sn(g.away) + '</div>' + awayLocked + '</div>' + awayTick + '</div>' +
+        '</div>';
+
+      if (canClick) {
+        card.addEventListener('click', function(e) {
+          var rect = card.getBoundingClientRect();
+          var mid = rect.left + rect.width / 2;
+          var clickedTeam = (e.clientX < mid) ? g.home : g.away;
+          if (e.clientX < mid && homeBlocked) clickedTeam = g.away;
+          if (e.clientX >= mid && awayBlocked) clickedTeam = g.home;
+          if (blocked[clickedTeam]) return;
+          selectPick(roundIdx, gameIdx, clickedTeam, g.home, g.away);
+        });
+      }
+
+      document.getElementById('games-' + roundIdx).appendChild(card);
+    })(ri, gi);
+  }
+}
+
+function selectPick(ri, gi, team, home, away) {
+  pendingPick[ri] = { team: team, home: home, away: away, gameIdx: gi };
+  // Re-render the round - this freezes all other cards and shows the tick on the right side
+  renderRound(ri);
+  // Nav badge turns green
+  var navBtn = document.getElementById('rnbtn-' + ri);
+  if (navBtn) navBtn.classList.add('has-pick');
+}
+
+async function handleSubmit(ri) {
+  var p = pendingPick[ri];
+  var existing = allTips[ROUNDS[ri].num];
+  if (!p && !existing) return;
+  var team = p ? p.team : existing.tipped_team;
+  var home = p ? p.home : existing.home_team;
+  var away = p ? p.away : existing.away_team;
+
+  var btn = document.getElementById('submitbtn-' + ri);
+  var status = document.getElementById('savestatus-' + ri);
+  if (btn) btn.disabled = true;
+  if (status) { status.className = 'save-status'; status.textContent = 'Saving...'; }
+
+  // Always send WhatsApp FIRST so tip is never lost regardless of DB
+  sendWhatsApp(ri, home, away, team);
+
+  var res = await saveTip(ROUNDS[ri].num, home, away, team);
+
+  if (res.ok) {
+    if (status) {
+      status.className = 'save-status ok';
+      status.textContent = res.dbSkipped ? 'WhatsApp sent! (tip stored this session only - fix DB config to make permanent)' : 'Saved to database + WhatsApp sent!';
+    }
+    updateProgress();
+    refreshNavBadges();
+    renderRound(ri);
+    for (var j = ri + 1; j <= Math.min(ri + 4, ROUNDS.length - 1); j++) renderRound(j);
+    renderHistory();
+  } else {
+    // DB failed - store in memory so the page still works this session
+    allTips[ROUNDS[ri].num] = { round_num: ROUNDS[ri].num, home_team: home, away_team: away, tipped_team: team };
+    if (status) {
+      status.className = 'save-status err';
+      status.textContent = 'WhatsApp sent! But DB save failed: ' + (res.msg || 'Unknown error') + ' - open F12 console for details';
+    }
+    if (btn) btn.disabled = true;
+    updateProgress();
+    refreshNavBadges();
+    renderRound(ri);
+    for (var j = ri + 1; j <= Math.min(ri + 4, ROUNDS.length - 1); j++) renderRound(j);
+  }
+}
+
+function sendWhatsApp(ri, home, away, team) {
+  var r = ROUNDS[ri];
+  var msg = 'NRL 2026 Tipping\nPlayer: ' + currentPlayer + '\nRound ' + r.num + ' (' + r.dates + ')\nGame: ' + sn(home) + ' vs ' + sn(away) + '\nTip: ' + sn(team) + ' to win!';
+  window.open('https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function switchRound(i) {
+  document.querySelectorAll('.round-section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.rn-btn').forEach(function(b) { b.classList.remove('active'); });
+  var sec = document.getElementById('round-' + i);
+  if (sec) sec.classList.add('active');
+  var btn = document.getElementById('rnbtn-' + i);
+  if (btn) { btn.classList.add('active'); btn.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' }); }
+  activeRound = i;
+}
+
+function updateProgress() {
+  var count = Object.keys(allTips).length;
+  var total = ROUNDS.length;
+  var pct = Math.round((count / total) * 100);
+  var pt = document.getElementById('progress-text');
+  var pp = document.getElementById('progress-pct');
+  var pf = document.getElementById('progress-fill');
+  var pc = document.getElementById('player-picks-count');
+  if (pt) pt.textContent = count + ' of ' + total + ' rounds tipped';
+  if (pp) pp.textContent = pct + '%';
+  if (pf) pf.style.width = pct + '%';
+  if (pc) pc.textContent = count + '/' + total + ' tipped';
+}
+
+function toggleHistory() {
+  var panel = document.getElementById('historyPanel');
+  var arrow = document.getElementById('histArrow');
+  panel.classList.toggle('open');
+  if (arrow) arrow.textContent = panel.classList.contains('open') ? '^' : 'v';
+  if (panel.classList.contains('open')) renderHistory();
+}
+
+function renderHistory() {
+  var panel = document.getElementById('historyPanel');
+  if (!panel) return;
+  var html = '';
+  for (var i = 0; i < ROUNDS.length; i++) {
+    var r = ROUNDS[i];
+    var t = allTips[r.num];
+    if (t) {
+      var opp = t.home_team === t.tipped_team ? t.away_team : t.home_team;
+      html += '<div class="history-row">' +
+        '<span class="rnd">Rd ' + r.num + ' <span class="matchup">' + r.dates + '</span></span>' +
+        '<span class="pick-team">&#10003; ' + sn(t.tipped_team) + '</span>' +
+        '<span class="matchup">vs ' + sn(opp) + '</span>' +
+      '</div>';
+    } else {
+      html += '<div class="history-row"><span class="rnd">Rd ' + r.num + '</span><span class="no-pick">No tip yet</span></div>';
+    }
+  }
+  panel.innerHTML = html;
+}
+
+function setLoading(on, msg) {
+  var ov = document.getElementById('loading-overlay');
+  var lm = document.getElementById('loading-msg');
+  if (ov) ov.classList.toggle('hidden', !on);
+  if (lm && msg) lm.textContent = msg;
+}
+
+/* INIT */
+(function init() {
+  db = initDB();
+  populateLoginSelect();
+
+  // Restore session - but only if player exists AND is not locked
+  var savedPlayer = sessionStorage.getItem('nrl_player');
+  if (savedPlayer) {
+    for (var i = 0; i < PLAYERS.length; i++) {
+      if (PLAYERS[i].name === savedPlayer) {
+        if (PLAYERS[i].locked) {
+          sessionStorage.removeItem('nrl_player');
+          break;
+        }
+        currentPlayer = savedPlayer;
+        showApp();
+        return;
+      }
+    }
+  }
+  setLoading(false);
+  document.getElementById('login-screen').style.display = 'flex';
+})();
+
+// Refresh open round banners every 60 seconds so countdown stays live
+// Also auto-locks the round the moment Thursday 3:30pm passes
+setInterval(function() {
+  if (!currentPlayer) return;
+  for (var i = 0; i < ROUNDS.length; i++) {
+    var now = new Date();
+    var lockout = new Date(ROUNDS[i].lockout);
+    var prevLockout = i > 0 ? new Date(ROUNDS[i-1].lockout) : new Date(0);
+    var isOpen = now < lockout && now >= prevLockout;
+    var justLocked = now >= lockout && (now - lockout) < 120000; // within 2 mins of lockout
+    if (isOpen || justLocked) {
+      renderRound(i);
+    }
+  }
+}, 60000);
+</script>
+</body>
+</html>
